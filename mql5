@@ -1,0 +1,83 @@
+
+// Developer: Forex Robot Easy Team
+// Developer's site: forexroboteasy.com
+// Program Name: DYJ Withdrawal Plan
+
+// Include necessary libraries
+#include <Trade\PositionInfo.mqh>
+#include <Trade\Trade.mqh>
+
+// Declare global variables
+string symbolArray[10] = {'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCHF', 'USDCAD', 'EURJPY', 'GBPJPY', 'AUDJPY', 'EURGBP'};
+int totalSymbols = 10;
+
+// Function to open positions at trend turning points
+void OpenPositions()
+{
+    for (int i = 0; i < totalSymbols; i++)
+    {
+        string symbol = symbolArray[i];
+        double currentPrice = MarketInfo(symbol, MODE_BID);
+        double previousPrice = iMA(symbol, 0, 1, 0, MODE_SMA, PRICE_CLOSE, 1);
+
+        if (currentPrice > previousPrice)
+        {
+            // Open buy position
+            double lotSize = NormalizeDouble(AccountFreeMargin() * 0.01 / MarketInfo(symbol, MODE_MARGINREQUIRED), 2);
+            double stopLoss = currentPrice - 30 * MarketInfo(symbol, MODE_POINT);
+            double takeProfit = currentPrice + 60 * MarketInfo(symbol, MODE_POINT);
+            
+            if (lotSize > 0.01 && stopLoss > 0 && takeProfit > 0)
+                OrderSend(symbol, OP_BUY, lotSize, currentPrice, 0, stopLoss, takeProfit, 'DYJ Withdrawal Plan', 0, 0, clrGreen);
+        }
+        else if (currentPrice < previousPrice)
+        {
+            // Open sell position
+            double lotSize = NormalizeDouble(AccountFreeMargin() * 0.01 / MarketInfo(symbol, MODE_MARGINREQUIRED), 2);
+            double stopLoss = currentPrice + 30 * MarketInfo(symbol, MODE_POINT);
+            double takeProfit = currentPrice - 60 * MarketInfo(symbol, MODE_POINT);
+            
+            if (lotSize > 0.01 && stopLoss > 0 && takeProfit > 0)
+                OrderSend(symbol, OP_SELL, lotSize, currentPrice, 0, stopLoss, takeProfit, 'DYJ Withdrawal Plan', 0, 0, clrRed);
+        }
+    }
+}
+
+// Function to close positions at trend turning points
+void ClosePositions()
+{
+    for (int i = 0; i < OrdersTotal(); i++)
+    {
+        if (!OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+            continue;
+        
+        if (OrderSymbol() == 'EURUSD' || OrderSymbol() == 'GBPUSD' || OrderSymbol() == 'USDJPY')
+        {
+            double currentPrice = MarketInfo(OrderSymbol(), MODE_BID);
+            double previousPrice = iMA(OrderSymbol(), 0, 1, 0, MODE_SMA, PRICE_CLOSE, 1);
+            
+            if ((OrderType() == OP_BUY && currentPrice < previousPrice) || (OrderType() == OP_SELL && currentPrice > previousPrice))
+                OrderClose(OrderTicket(), OrderLots(), currentPrice, 0, clrWhite);
+        }
+    }
+}
+
+// Function to display basic trading information
+void DisplayTradingInfo()
+{
+    double accountBalance = AccountBalance();
+    double accountEquity = AccountEquity();
+    double accountProfit = accountEquity - accountBalance;
+    
+    Print('Account Balance: ', accountBalance);
+    Print('Account Equity: ', accountEquity);
+    Print('Account Profit: ', accountProfit);
+}
+
+// Entry point of the program
+void OnTick()
+{
+    OpenPositions();
+    ClosePositions();
+    DisplayTradingInfo();
+}
